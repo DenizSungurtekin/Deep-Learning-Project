@@ -1,3 +1,12 @@
-# Deep-Learning-Project
-The objective of this project is to provide a complete introduction to deep machine learning.
-Test from Sajaendra
+# Deep Learning
+
+* Project 1 : Image classfication,weight sharing, auxilliary losses
+* Project 2 : Mini Deep-Learning framework
+
+## Authors
+
+* **Sajaendra Thevamanoharan**
+* **Deniz Sungurtekin**
+* **Antoine Branca**
+
+
