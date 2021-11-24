@@ -17,15 +17,48 @@ y_test = t.tensor([0 if ((pair[0]>limit_up or pair[1]>limit_up) or (pair[0]<limi
 y_test = y_test.view(y_train.size()[0],1)
 
 
-#Example use of framework
+#Example use of framework with max batch size and no accumulate gradient
 nn = fw.NeuralNetwork()
 nn.add(nn.Linear(2,25),nn.reLU(),nn.Linear(25,25),nn.tanH(),nn.Linear(25,1),nn.tanH())
 dataset = t.rand((1000,2))
-operations = nn.train(dataset,y_train,1000,100)
+nn.train(dataset,y_train,1000,100)
 
-# Compute accuracy
+# Forward with new weight and Compute accuracy
 y = nn.forward(x_test)
-prediction = (y.flatten()==y_test.flatten()).tolist()
-N = len(prediction)
-true_positif = prediction.count(True)
-print("Accuracy = ",true_positif/N,"%")
+nn.computeAcc(y,y_test)
+
+
+# #Example use of framework with accumulate gradient = 4 and batch size = 50
+# nn = fw.NeuralNetwork()
+# nn.add(nn.Linear(2,25),nn.reLU(),nn.Linear(25,25),nn.tanH(),nn.Linear(25,1),nn.tanH())
+# dataset = t.rand((1000,2))
+# nn.train(dataset,y_train,50,100,0.01,4)
+#
+# # Forward with new weight and Compute accuracy
+# y = nn.forward(x_test[0:50])
+# nn.computeAcc(y,y_test[0:50])
+
+
+
+
+
+# #Example use of framework test
+
+
+
+# nn = fw.NeuralNetwork()
+#
+# nn.add(nn.Linear(2,1000),nn.reLU(),nn.Linear(1000,1),nn.reLU())
+# dataset = t.rand((1000,2))
+# nn.train(dataset,y_train,1000,20,0.001)
+#
+#
+# # Forward with new weight and Compute accuracy
+# y = nn.forward(x_test)
+# nn.computeAcc(y,y_test)
+#
+
+
+# Not improving model Verification
+#relu-der
+#tanH-der

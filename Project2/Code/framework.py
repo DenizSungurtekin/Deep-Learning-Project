@@ -8,7 +8,6 @@ class NeuralNetwork(object):
         self.operations = []
         self.memory = []
         self.fls = [] #pile
-        self.fls_list = [] #same but list
 
     class Linear():
         def __init__(self,in_features,out_features,bias=True):
@@ -48,10 +47,10 @@ class NeuralNetwork(object):
             return input.apply_(lambda x: (max(0, x)))
 
         def mapFunction(self,x): #used in derivative to derive Relu
-            if x >= 0:
-                res = 0
-            elif x < 0:
+            if x > 0:
                 res = 1
+            elif x <= 0:
+                res = 0
             return res
 
         def derivative(self,input):
@@ -65,7 +64,7 @@ class NeuralNetwork(object):
             return input.apply_(lambda x: (m.exp(x) - m.exp(-x)) / (m.exp(x) + m.exp(-x)))
 
         def derivative(self,input):
-            return 1 - (self.evaluation(input)**2)
+            return (1 - (self.evaluation(input)**2))
 
     def forward(self,input):
         input = t.transpose(input,0,1) #transpose
@@ -99,7 +98,7 @@ class NeuralNetwork(object):
             res += (x - y) ** 2
         return res / N
 
-    def SGD(self,operations,gradiants,step): #update weights
+    def SGD(self,operations,gradiants,step,bias): #update weights
         new_operation = []
         j = 0  # j is an index corresponding to the ith gradiants
 
@@ -107,7 +106,8 @@ class NeuralNetwork(object):
 
             if operations[i].type == 1:
                 operations[i].weights -= step * gradiants[j]["w"]
-                operations[i].bias -= step * gradiants[j]["b"]
+                if bias:
+                    operations[i].bias -= step * gradiants[j]["b"]
                 j+=1
             new_operation.append(operations[i])
         return new_operation
@@ -151,7 +151,7 @@ class NeuralNetwork(object):
 
         return gradiants[::-1] #reverse to have the gradiants in the good order
 
-    def train(self,x_train,y_train,batch_size,epochs,training_step=0.01,grad_accumulate=0):
+    def train(self,x_train,y_train,batch_size,epochs,training_step=0.0001,grad_accumulate=0,bias=True):
         count = grad_accumulate
         N = x_train.size()[0]
         indexs = [i for i in range(0,N,batch_size)]
@@ -163,19 +163,24 @@ class NeuralNetwork(object):
 
             for batch,y_train in zip(batchs,y_trains):
                 gradiants = self.backward(self.forward(batch),self.operations,y_train)
-
                 if grad_accumulate == 0:
-                    self.operations = self.SGD(self.operations,gradiants,training_step)
+                    self.operations = self.SGD(self.operations,gradiants,training_step,bias)
+                    #print("Weight updated")
                     grad_accumulate = count
 
                 else:
                     if countfirst: # The first iteration we initialize the accumulate gradient
-                        acc_grad = gradiants
+                        acc_grads = gradiants
                         countfirst = False
                     else:
-                        for acc_grad,grad in zip(acc_grad,gradiants):
+                        for acc_grad,grad in zip(acc_grads,gradiants):
+                            # print(acc_grad["w"])
                             acc_grad["w"] += grad["w"]
                             acc_grad["b"] += grad["b"]
                     grad_accumulate -= 1
 
-        return self.operations #return the operation with adjusted weight
+    def computeAcc(self,y_pred,y_test):
+        prediction = (y_pred.flatten() == y_test.flatten()).tolist()
+        N = len(prediction)
+        true_positif = prediction.count(True)
+        print("Accuracy = ", true_positif / N, "%")
