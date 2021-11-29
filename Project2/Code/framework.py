@@ -1,5 +1,8 @@
 import torch as t
 import copy as c
+import pickle
+import warnings
+
 
 class NeuralNetwork(object):
 
@@ -32,7 +35,6 @@ class NeuralNetwork(object):
             output = t.add(mul,self.bias) # Wx' + b = output
             return output
 
-
     def add(self,*operation):
         for op in operation:
             self.operations.append(op)
@@ -54,6 +56,17 @@ class NeuralNetwork(object):
         def derivative(self,input):
             return input.apply_(lambda x: (self.mapFunction(x)))
 
+    class noActivation(): # because the backpropagation supose that after the linear transformation we have an activation function, this class represent a "non activation function" if we dont want to use activation function
+        def __init__(self):
+            self.type = 2
+
+        def evaluation(self,input):
+            return input
+
+        def derivative(self,input):
+            size = input.size()
+            return t.ones(size)
+
     class sigmoid():
         def __init__(self):
             self.type = 2
@@ -65,7 +78,6 @@ class NeuralNetwork(object):
             size = input.size()
             ones = t.ones(size)
             return t.mul(self.evaluation(input),(ones-self.evaluation(input)))
-
 
     class tanH():
         def __init__(self):
@@ -86,20 +98,8 @@ class NeuralNetwork(object):
             self.memory.append(input) #Store x before FL or z before activation function
             if operation.type == 1:
                 self.fls.append(operation)
-
-            input = operation.evaluation(input)
-        # input = self.round(input)
-
-        print("out",input[0][0:20])
-        return input
-
-    def forward_test(self,input):#Used to print accuray without any print
-        input = t.transpose(input,0,1) #transpose
-        for operation in self.operations:
             input = operation.evaluation(input)
         return input
-
-
 
     def round(self,input):
         return input.apply_(lambda x: (int(round(x))))
@@ -110,10 +110,7 @@ class NeuralNetwork(object):
     def MSE_derivative(self,y_train,output):
         y_train = t.transpose(y_train,0,1)
         N = y_train.size()[1]
-        return (-2/N) * (y_train - output) # (y_train-output)**2 d_output = -2 * (y_train-output) = 2*(output-y_train)  ->> VERIFIE JUSTE
-
-    # def MSE_derivative2(self,y_train,output):
-    #
+        return (-2/N) * (y_train - output)
 
     def MSE_scalar(self,y_train, output):
         y_train = t.flatten(y_train).tolist()
@@ -125,29 +122,23 @@ class NeuralNetwork(object):
         return res / N
 
     def SGD(self,operations,gradiants,step,bias): #update weights
-        j = 0  # j is an index corresponding to the ith gradiants
-
+        j = 0  # j is an index corresponding to the ith gradiants (1/2 operation is linear so we have 1/2 * len(operations) gradient
         for i in range(len(operations)):
-
             if operations[i].type == 1:
                 operations[i].weights -= step * gradiants[j]["w"]
-
                 if bias:
                     operations[i].bias -= step * gradiants[j]["b"]
                 j+=1
 
-
-    def backward(self,output,operation,y_train):
+    def backward(self,output,operation,y_train): # cf nn2.pdf
         gradiants = []
         deltas = []
         derivative = self.MSE_derivative(y_train,output)
-        print("deriv",derivative[0][0:20])
         i = 0
         operations = c.deepcopy(operation)
         operations = operations[::-1] # Inverse list order
 
-        for op in operations: # cf nn2.pdf
-
+        for op in operations:
             if op.type == 2:
                 if i == 0:
                     derivative = t.mul(derivative, op.derivative(self.memory.pop()))  # compute of delta if i == 0
@@ -162,14 +153,7 @@ class NeuralNetwork(object):
                 gradiant['b'] = derivative # doesnt change because if we derive wrt b we obtain 1 -> last computed derivative = delta_i
                 gradiant['w'] = t.matmul(derivative,t.transpose(self.memory.pop(),0,1)) #delta2 x_i-1 ' , in example: for W2 -> x1 -> if we derive wrt W we obtain x
                 gradiants.append(gradiant)
-
             i += 1
-        # print("My grad w1 ",gradiants[1]["w"])
-        # print("My grad  w2 ", (gradiants[0]["w"]))
-        # # print("My grad  w3 ", gradiants[0]["w"])
-        # print("My grad b1 ", gradiants[1]["b"][0][0:20])
-        # print("My grad b2 ", gradiants[0]["b"][0][0:20])
-        # print("My grad b3 ", gradiants[0]["b"][0][0:20])
         return gradiants[::-1] #reverse to have the gradiants in the good order
 
     def train(self,x_train,y_train,batch_size,epochs,training_step=0.01,grad_accumulate=0,bias=True):
@@ -180,17 +164,14 @@ class NeuralNetwork(object):
         y_trains = [y_train[i:i+batch_size] for i in indexs]
         countfirst = True
         for i in range(epochs):
-            if i%100 == 0:
+            if i%5000 == 0:
                 print("Start of epochs ",i)
-
             for batch,y_train in zip(batchs,y_trains):
                 output = self.forward(batch)
                 gradiants = self.backward(output,self.operations,y_train)
                 if grad_accumulate == 0:
                     self.SGD(self.operations,gradiants,training_step,bias)
-                    #print("Weight updated")
                     grad_accumulate = count
-
                 else:
                     if countfirst: # The first iteration we initialize the accumulate gradient
                         acc_grads = gradiants
@@ -202,16 +183,34 @@ class NeuralNetwork(object):
                     grad_accumulate -= 1
 
     def computeAcc(self,x_test,y_test,batch_size):
+        warnings.filterwarnings("ignore")
         N = y_test.size()[0]
         y_preds = []
         indexs = [i for i in range(0, N, batch_size)]
         for i in indexs:
-            y_pred = self.round(self.forward_test(x_test[i:i+batch_size]))
+            y_pred = self.round(self.forward(x_test[i:i+batch_size]))
             y_preds.append(y_pred)
-        y_preds = [x for sub in y_preds for x in sub]
-        y_preds = [x for sub in y_preds for x in sub]
 
+        #flatten the list (list of list of list)
+        y_preds = [x for sub in y_preds for x in sub]
+        y_preds = [x for sub in y_preds for x in sub]
         y_preds = t.FloatTensor(y_preds)
+
         prediction = (t.tensor(y_preds).flatten() == y_test.flatten()).tolist()
         true_positif = prediction.count(True)
         print("Accuracy = ", true_positif / N, "%")
+
+    def saveModel(self,model,name): #Save model in folder "models" with specified name
+        string = "models/"
+        string += name
+        file = open(string,"wb")
+        pickle.dump(model,file)
+        file.close()
+
+    def loadModel(self, name):
+        string = "models/"
+        string += name
+        file = open(string, "rb")
+        load_model = pickle.load(file)
+        file.close()
+        return load_model
