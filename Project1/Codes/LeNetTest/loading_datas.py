@@ -23,7 +23,7 @@ def mnist_to_pairs(nb, train, target):
     classes = torch.index_select(classes, 0, sameClasses)[:nb]
     target = torch.index_select(target, 0, sameClasses)[:nb]
 
-    target = convert_to_one_hot_labels(pairs, target)
+    # target = convert_to_one_hot_labels(pairs, target)
 
     return pairs, target, classes
 
