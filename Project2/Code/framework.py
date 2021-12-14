@@ -99,6 +99,12 @@ class NeuralNetwork(object):
             if operation.type == 1:
                 self.fls.append(operation)
             input = operation.evaluation(input)
+
+        size = input.size() # Just to check if we dont have a zeros tensor as output because with reLu its mean the neural is dead -> relu(0) = 0, relu'(0) = 0
+        zero = t.zeros(size)
+        if t.equal(input,zero):
+            print("Warning: your output is zero and might not be learning with reLU -> Try to lower your learning step.")
+
         return input
 
     def round(self,input):
@@ -199,6 +205,7 @@ class NeuralNetwork(object):
         prediction = (t.tensor(y_preds).flatten() == y_test.flatten()).tolist()
         true_positif = prediction.count(True)
         print("Accuracy = ", true_positif / N, "%")
+        return true_positif / N
 
     def saveModel(self,model,name): #Save model in folder "models" with specified name
         string = "models/"
@@ -214,3 +221,4 @@ class NeuralNetwork(object):
         load_model = pickle.load(file)
         file.close()
         return load_model
+
