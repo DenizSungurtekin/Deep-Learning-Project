@@ -204,7 +204,7 @@ class NeuralNetwork(object):
 
         prediction = (t.tensor(y_preds).flatten() == y_test.flatten()).tolist()
         true_positif = prediction.count(True)
-        print("Accuracy = ", true_positif / N, "%")
+        print("Accuracy = ", true_positif / N)
         return true_positif / N
 
     def saveModel(self,model,name): #Save model in folder "models" with specified name
