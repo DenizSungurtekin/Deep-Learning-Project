@@ -23,11 +23,10 @@ def generateData():
 x_train,y_train,x_test,y_test = generateData()
 # Load a model
 nn = fw.NeuralNetwork()
-myNN = nn.loadModel("TRR3HL25b50")
+myNN = nn.loadModel("MonModel")
 
 # Compute accuracy
 batch_size = 50 #Needed because the model was trained with this batch size and the dimension of the bias depend on this batch size
-print("Train accuracy: ")
-myNN.computeAcc(x_train,y_train,batch_size)
+
 print("Test accuracy: ")
 myNN.computeAcc(x_test,y_test,batch_size)# A batch size is specified but the accuracy is computed on the entier dataset
